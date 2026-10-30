@@ -135,8 +135,8 @@
 
     onMount(() => {
         observer.observe(element);
-        element.style.height = `${Math.max(height, 21)}px`;
-        element.style.width = `${Math.max(width, 150)}px`;
+        element.style.height = `${Math.max(height, 38)}px`;
+        element.style.width = `${Math.max(width, 240)}px`;
     });
 
     onDestroy(() => {
@@ -156,9 +156,9 @@
 on:mousedown={ startDrag }
 style="left: { $coordSpring.x }px; top: { $coordSpring.y }px;">
     <div class="header">
-        {name}
-        <button class="minimize" on:click={toggleMinimized}>
-            {minimized ? "+" : "-"}
+        <span class="title">{name}</span>
+        <button class="minimize" aria-label={minimized ? "Expand panel" : "Minimize panel"} on:click|stopPropagation={toggleMinimized}>
+            {minimized ? "+" : "−"}
         </button>
     </div>
     <div class="children">
@@ -170,24 +170,57 @@ style="left: { $coordSpring.x }px; top: { $coordSpring.y }px;">
 
 <style>
     .menu {
+        --panel-bg: rgba(18, 22, 32, 0.97);
+        --panel-border: rgba(255, 255, 255, 0.12);
+        --panel-muted: rgba(255, 255, 255, 0.62);
         position: absolute;
-        background-color: var(--menuBackgroundColor);
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        background: var(--panel-bg);
+        color: var(--textColor, #f4f6fb);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.2);
         resize: both;
         overflow: hidden;
-        min-width: 150px;
-        border-radius: 5px;
+        min-width: 240px;
+        min-height: 38px;
         user-select: none;
         pointer-events: all;
-        outline-width: 3px;
-        outline-style: solid;
-        outline-color: var(--menuOutlineColor);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        line-height: 1.45;
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        transition: box-shadow 160ms ease, border-color 160ms ease;
+    }
+
+    .menu:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 55px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.22);
     }
 
     .children {
         position: relative;
-        height: calc(100% - 21px);
+        flex: 1;
+        min-height: 0;
+        height: calc(100% - 44px);
         overflow-x: hidden;
         overflow-y: auto;
+        padding: 10px;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,.22) transparent;
+    }
+
+    .children::-webkit-scrollbar {
+        width: 7px;
+    }
+
+    .children::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,.2);
+        border-radius: 999px;
     }
 
     :global(.groupContent) {
@@ -196,7 +229,9 @@ style="left: { $coordSpring.x }px; top: { $coordSpring.y }px;">
         left: 0;
         display: flex;
         flex-direction: column;
+        gap: 8px;
         width: 100%;
+        box-sizing: border-box;
     }
 
     .groupContent {
@@ -208,26 +243,100 @@ style="left: { $coordSpring.x }px; top: { $coordSpring.y }px;">
     .menu.minimized {
         overflow: hidden;
         resize: horizontal;
-        height: 21px !important;
+        height: 38px !important;
+        min-height: 38px;
     }
 
     .header {
-        background-color: var(--menuHeaderBackgroundColor);
-        position: relative;
-        color: var(--menuHeaderTextColor);
-        width: 100%;
-        text-align: center;
-        font-size: 14px;
-        height: 21px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex: 0 0 42px;
+        box-sizing: border-box;
+        padding: 0 10px 0 14px;
+        background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+        border-bottom: 1px solid rgba(255,255,255,.09);
+        color: var(--menuHeaderTextColor, #f8fafc);
+        cursor: grab;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 650;
+        letter-spacing: .01em;
+    }
+
+    .header:active {
+        cursor: grabbing;
+    }
+
+    .title {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 
     .minimize {
-        background-color: transparent;
-        border: none;
+        display: inline-flex;
         align-items: center;
-        position: absolute;
-        right: 5px;
-        top: 0;
+        justify-content: center;
+        flex: 0 0 25px;
+        width: 25px;
+        height: 25px;
+        margin-left: 12px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 7px;
+        background: rgba(255,255,255,.055);
+        color: var(--menuHeaderTextColor, #f8fafc);
+        font: inherit;
+        font-size: 17px;
+        line-height: 1;
         cursor: pointer;
+        transition: background 140ms ease, border-color 140ms ease;
+    }
+
+    .minimize:hover {
+        background: rgba(255,255,255,.13);
+        border-color: rgba(255,255,255,.24);
+    }
+
+    .minimize:focus-visible,
+    :global(#gc-hud button:focus-visible),
+    :global(#gc-hud input:focus-visible),
+    :global(#gc-hud select:focus-visible) {
+        outline: 2px solid #8b9cff;
+        outline-offset: 2px;
+    }
+
+    :global(#gc-hud button:not(.minimize)) {
+        border-radius: 7px;
+        transition: filter 140ms ease, background-color 140ms ease, border-color 140ms ease;
+    }
+
+    :global(#gc-hud button:not(.minimize):hover) {
+        filter: brightness(1.12);
+    }
+
+    :global(#gc-hud input),
+    :global(#gc-hud select),
+    :global(#gc-hud textarea) {
+        box-sizing: border-box;
+        max-width: 100%;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 7px;
+        padding: 7px 9px;
+        background: rgba(8, 11, 18, .72);
+        color: inherit;
+        font: inherit;
+    }
+
+    :global(#gc-hud input[type="checkbox"]),
+    :global(#gc-hud input[type="radio"]) {
+        accent-color: #8b9cff;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .menu, .minimize, :global(#gc-hud button) {
+            transition: none;
+        }
     }
 </style>
