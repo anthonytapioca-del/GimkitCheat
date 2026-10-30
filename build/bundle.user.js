@@ -22009,3 +22009,162 @@
     }
     installStyle();
 })();
+
+
+/* Consolidate the existing HUD panels into one tabbed window. */
+(() => {
+    const styleId = "gc-tabbed-hud-style";
+    const css = `
+        #gc-hud .menu.svelte-4jfbq8.gc-tabbed-shell {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 390px !important;
+            height: 560px !important;
+            min-height: 300px !important;
+            resize: both !important;
+        }
+        #gc-hud .gc-tabbar {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 5px;
+            flex: 0 0 auto;
+            padding: 8px;
+            border-bottom: 1px solid rgba(255,255,255,.09);
+            background: rgba(255,255,255,.025);
+            box-sizing: border-box;
+        }
+        #gc-hud .gc-tabbar button {
+            min-width: 0;
+            padding: 8px 5px;
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 8px;
+            background: rgba(255,255,255,.045);
+            color: #e9edf7;
+            font: 600 12px/1.3 Inter, ui-sans-serif, system-ui, sans-serif;
+            cursor: pointer;
+        }
+        #gc-hud .gc-tabbar button[aria-selected="true"] {
+            background: rgba(129,145,255,.2);
+            border-color: rgba(145,157,255,.55);
+            color: #fff;
+        }
+        #gc-hud .gc-tab-stage {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #gc-hud .gc-tab-stage > .children.svelte-4jfbq8 {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+            padding: 10px !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+        }
+        #gc-hud .gc-tab-stage > .children.svelte-4jfbq8[hidden] {
+            display: none !important;
+        }
+        #gc-hud .gc-tab-stage .groupContent.svelte-4jfbq8 {
+            gap: 8px !important;
+        }
+    `;
+    let merged = false;
+
+    function installStyle() {
+        if (document.getElementById(styleId)) return;
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = css;
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    function mergeMenus() {
+        if (merged) return true;
+        const hud = document.getElementById("gc-hud");
+        if (!hud) return false;
+        const menus = Array.from(hud.querySelectorAll(".menu.svelte-4jfbq8"));
+        if (menus.length < 3) return false;
+
+        const shell = menus[0];
+        const header = shell.querySelector(".header.svelte-4jfbq8");
+        if (!header) return false;
+
+        installStyle();
+        merged = true;
+        shell.classList.add("gc-tabbed-shell");
+
+        // Replace the original title text but keep its minimize button and handlers.
+        for (const node of Array.from(header.childNodes)) {
+            if (node.nodeType === Node.TEXT_NODE) node.remove();
+        }
+        const title = document.createElement("span");
+        title.textContent = "Gimkit Hub";
+        title.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        header.insertBefore(title, header.firstChild);
+
+        const tabbar = document.createElement("div");
+        tabbar.className = "gc-tabbar";
+        tabbar.setAttribute("role", "tablist");
+        tabbar.setAttribute("aria-label", "HUD sections");
+
+        const labels = ["General", "Gamemodes", "Customize"];
+        const buttons = labels.map((label, index) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.setAttribute("role", "tab");
+            button.setAttribute("aria-selected", index === 0 ? "true" : "false");
+            button.addEventListener("click", event => {
+                event.stopPropagation();
+                buttons.forEach((item, i) => item.setAttribute("aria-selected", i === index ? "true" : "false"));
+                panes.forEach((pane, i) => {
+                    pane.hidden = i !== index;
+                    pane.setAttribute("aria-hidden", i === index ? "false" : "true");
+                });
+            });
+            tabbar.appendChild(button);
+            return button;
+        });
+
+        const stage = document.createElement("div");
+        stage.className = "gc-tab-stage";
+        stage.setAttribute("role", "presentation");
+        const panes = [];
+
+        menus.forEach((menu, index) => {
+            const pane = menu.querySelector(".children.svelte-4jfbq8");
+            if (!pane) return;
+            pane.hidden = index !== 0;
+            pane.setAttribute("role", "tabpanel");
+            pane.setAttribute("aria-hidden", index === 0 ? "false" : "true");
+            panes.push(pane);
+            stage.appendChild(pane);
+            if (menu !== shell) menu.remove();
+        });
+
+        header.insertAdjacentElement("afterend", tabbar);
+        tabbar.insertAdjacentElement("afterend", stage);
+        shell.style.width = "390px";
+        shell.style.height = "560px";
+        shell.style.minWidth = "300px";
+        shell.style.minHeight = "300px";
+        shell.style.resize = "both";
+        return true;
+    }
+
+    const observer = new MutationObserver(() => {
+        if (mergeMenus()) observer.disconnect();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    mergeMenus();
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", mergeMenus, { once: true });
+    }
+    window.setTimeout(() => {
+        mergeMenus();
+        if (!merged) observer.disconnect();
+    }, 10000);
+})();
